@@ -1,7 +1,7 @@
 {
   "name": "@paladinfi/agentkit-actions",
-  "version": "0.0.2",
-  "description": "Pre-trade trust verification for Coinbase AgentKit agents — composed OFAC SDN + GoPlus + Etherscan + lookalike risk gate via x402-paid PaladinFi API on Base. Skeleton release; full LLM extraction + paid x402 settlement in v0.1.0.",
+  "version": "0.1.0",
+  "description": "Pre-trade trust verification for Coinbase AgentKit agents — composed OFAC SDN + GoPlus + Etherscan + lookalike risk gate via x402-paid PaladinFi API on Base. Class-based ActionProvider with paid x402 settlement.",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -46,21 +46,33 @@
     "CHANGELOG.md"
   ],
   "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
   "peerDependencies": {
-    "@coinbase/agentkit": "^0.10.4"
+    "@coinbase/agentkit": "0.10.4"
   },
   "dependencies": {
-    "viem": "^2.21.0",
+    "@x402/core": "2.11.0",
+    "@x402/evm": "2.11.0",
+    "@x402/fetch": "2.11.0",
+    "reflect-metadata": "^0.2.2",
+    "viem": "2.21.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@coinbase/agentkit": "^0.10.4",
+    "@coinbase/agentkit": "0.10.4",
     "@types/node": "^22.0.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check-drift": "node scripts/check-drift.mjs",
+    "prepublishOnly": "npm run check-drift && npm run typecheck && npm run test && npm run build",
     "clean": "rm -rf dist"
   },
   "publishConfig": {

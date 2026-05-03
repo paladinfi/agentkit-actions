@@ -2,6 +2,50 @@
 
 All notable changes to `@paladinfi/agentkit-actions` are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2026-05-04
+
+First functional release. Graduates from `customActionProvider` thin wrapper to a proper `PaladinActionProvider extends ActionProvider<EvmWalletProvider>` with `@CreateAction` decorator + paid x402 settlement. Mirrors security architecture of sister package `@paladinfi/eliza-plugin-trust@0.1.0` (same hard-coded constants, same 6-check pre-sign hook, same `scrubViemError` pattern).
+
+Audit trail: plan v1 REQUIRES-MAJOR-REWRITE (Engineering H1 wallet-adapter, H2 import-type) → plan v2 with all convergent fixes → plan v2 re-review APPROVE-WITH-MINOR-FIXES (Engineering) → minor fixes applied (action-name override, chainId injection) → implementation. Memory: `eliza_outbound_2026-05-02.md` Lesson 7, `feedback_no_deploy_without_adversarial_review.md`.
+
+### Added
+
+- **Class-based `PaladinActionProvider`** with `@CreateAction`-decorated `paladinTrustCheck` method.
+- **Paid x402 settlement** via `@x402/fetch@2.11.0` + `@x402/evm@2.11.0` + `@x402/core@2.11.0` (all pinned exact). Uses `walletProvider.toSigner()` directly (NOT a hand-rolled adapter — the v1 plan's adapter was rejected by all 3 reviewers; AgentKit's `EvmWalletProvider.toSigner()` is the canonical path).
+- **6-check pre-sign hook** via `onBeforePaymentCreation` running `validatePaladinContext`. Closes wallet-drain, Permit2 downgrade, x402 v1 downgrade, long-lived signature, EIP-712 domain spoof. Hook-abort errors carry `paladin-trust BLOCKED pre-sign:` prefix.
+- **`getActions()` overridden** to strip the class-name prefix the `@CreateAction` decorator unconditionally applies. Surfaced `Action.name` is `paladin_trust_check` (matches v0.0.x); storage key stays prefixed (collision-safe).
+- **`supportsNetwork`** restricted to Base mainnet (`protocolFamily === "evm" && networkId === "base-mainnet"`) — matches in-tree convention (compoundActionProvider, basenameActionProvider, etc.).
+- **HTTPS gate inside `PaladinTrustClient` constructor** — defense in depth; direct `new PaladinTrustClient({ mode: "paid", apiBase: "http://..." })` throws.
+- **Per-invocation paid client construction** — each call gets fresh hook + scheme registration bound to THIS invocation's wallet. ~ms overhead; security-isolation win.
+- **`scripts/check-drift.mjs`** + `prepublishOnly` hook — diffs `x402/{constants,validate}.ts` + `errors.ts` byte-for-byte against sister package `@paladinfi/eliza-plugin-trust`. npm publish fails on divergence.
+- **35/36 unit tests pass** across `tests/x402-validate.test.ts` (17 — same as sister), `tests/boot-validation.test.ts` (11 — including supportsNetwork edge cases + legacy-wiring throw), `tests/action-binding.test.ts` (7 of 8 — the skipped one needs real AgentKit decorator metadata pipeline; covered by smoke).
+
+### Changed
+
+- **Schema simplified**: `chainId` dropped from `trustCheckRequestSchema`. Provider is Base-only via `supportsNetwork`; redundant field invited LLM hallucination. Schema is now `{ address, taker? }`. Internal API request still includes `chainId: 8453` (injected by the action handler).
+- **`@coinbase/agentkit` peerDep pinned exact `0.10.4`** (was `^0.10.4`).
+- **`@x402/{core,evm,fetch}` deps pinned exact `2.11.0`**.
+- **Added `reflect-metadata` dep** — required for the `@CreateAction` decorator's runtime metadata.
+
+### Breaking changes (vs v0.0.x)
+
+- **Factory return type**: `paladinTrustActionProvider()` now returns a `PaladinActionProvider` class instance (was a `customActionProvider`-shaped object). Both implement `ActionProvider`, so `actionProviders: [paladinTrustActionProvider()]` continues to work. Code that reached into the v0.0.x return value's internals will break.
+- **`paladinTrustActionProvider({ walletClientAccount: ... })` now THROWS** (was silently demoted to preview). v0.0.x docs suggested this wiring path; v0.1.0 routes paid mode through the AgentKit wallet provider's `toSigner()` automatically. Mount with `actionProviders: [paladinTrustActionProvider({ mode: "paid" })]` and the wallet provider is wired via the action method's first arg.
+- **Schema**: action input no longer includes `chainId`. v0.0.x callers passing `{ address, chainId: 8453 }` continue to work because Zod unknown-key handling permits extra fields, but the field is ignored — `chainId` is internally hard-coded to 8453.
+
+### Verified
+
+- `npm run typecheck` clean
+- `npm run build` clean
+- `npm run check-drift` clean (sister package parity verified byte-for-byte)
+- `npm run test` — 35/36 pass (1 skipped, covered by smoke)
+- **Manual paid smoke against live `/v1/trust-check`** with permanent test wallet (Account 4) succeeded. `recommendation: allow`, 5 real factors. Smoke imports `PaladinTrustClient` directly (not from index) due to upstream sushi/viem incompat in `@coinbase/agentkit`'s transitive deps — see Known Issues below.
+- Plan + implementation each passed 3-adversary review per `feedback_no_deploy_without_adversarial_review.md`. Plan v1 REQUIRES-MAJOR-REWRITE, v2 APPROVE-WITH-MINOR-FIXES (re-review).
+
+### Known issues
+
+- **Sushi/viem transitive incompatibility (test-environment only).** Our `smoke-paid.mjs` imports `PaladinTrustClient` directly from `./dist/client.js` (not from `./dist/index.js`) because the action-provider import chain pulls in `@coinbase/agentkit`'s barrel which transitively loads `sushi/chains.ts`, whose viem-chain references are stale in some viem versions. In normal AgentKit consumer setups, AgentKit's own `node_modules/@coinbase/agentkit/node_modules/viem` resolves the right chain symbols and there is no consumer-facing impact.
+
 ## [0.0.2] - 2026-05-03
 
 Retrospective adversarial-review patch. Caught by 3-adversary review (Engineering+Security + Maintainer) on the v0.0.1 ship after the deploy-without-review gap was codified (per PaladinFi internal rule established 2026-05-02: no public-surface deploy without 3-adversary review).
