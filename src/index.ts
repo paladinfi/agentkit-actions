@@ -79,14 +79,34 @@ const ACTION_DESCRIPTION =
  * @param userConfig - Optional partial config. Defaults to the live PaladinFi
  *   service in preview mode on Base (chainId 8453).
  */
+let _paidWarnEmitted = false;
+
 export function paladinTrustActionProvider(
   userConfig: Partial<PaladinTrustConfig> = {},
 ) {
-  const config: PaladinTrustConfig = {
-    ...DEFAULT_CONFIG,
-    ...userConfig,
-  };
+  // Use ?? fallbacks so explicit `undefined` doesn't shadow defaults.
+  // (v0.0.1 used spread `{...DEFAULT_CONFIG, ...userConfig}` which broke
+  // when callers passed `{apiBase: undefined}` — caught in retrospective review.)
+  const rawApiBase = userConfig.apiBase ?? DEFAULT_CONFIG.apiBase;
+  const apiBase = enforceHttps(rawApiBase);
 
+  // Graceful-degrade: v0.0.x silently downgrades `paid` → `preview` (with a
+  // one-time warn) since paid mode lands in v0.1.0.
+  let mode = userConfig.mode ?? DEFAULT_CONFIG.mode;
+  if (mode === "paid") {
+    if (!_paidWarnEmitted) {
+      console.warn(
+        "[paladin-trust] paid mode is not implemented in v0.0.x — falling back to preview. Paid x402 settlement lands in v0.1.0 (https://github.com/paladinfi/agentkit-actions/issues).",
+      );
+      _paidWarnEmitted = true;
+    }
+    mode = "preview";
+  }
+
+  const defaultChainId =
+    userConfig.defaultChainId ?? DEFAULT_CONFIG.defaultChainId;
+
+  const config: PaladinTrustConfig = { apiBase, mode, defaultChainId };
   const client = new PaladinTrustClient(config);
 
   return customActionProvider({
@@ -94,13 +114,7 @@ export function paladinTrustActionProvider(
     description: ACTION_DESCRIPTION,
     schema: trustCheckRequestSchema,
     invoke: async (args: TrustCheckRequest): Promise<string> => {
-      if (config.mode === "paid") {
-        throw new Error(
-          "paladin_trust_check paid mode is not implemented in v0.0.1. " +
-            "Set mode to 'preview' or wait for v0.1.0.",
-        );
-      }
-
+      // mode is always "preview" in v0.0.x after the degrade above.
       const response = await client.preview(args);
 
       const verdict = response.trust.recommendation;
@@ -121,6 +135,24 @@ export function paladinTrustActionProvider(
       );
     },
   });
+}
+
+function enforceHttps(url: string): string {
+  if (url.startsWith("https://")) return url;
+  // Allow http://localhost for development without explicit override.
+  if (
+    url.startsWith("http://localhost") ||
+    url.startsWith("http://127.0.0.1")
+  ) {
+    return url;
+  }
+  // Allow other http:// only when explicit env override is set (testnet/dev).
+  const allow = process.env?.PALADIN_TRUST_ALLOW_INSECURE ?? "";
+  if (allow === "1" || allow.toLowerCase() === "true") return url;
+  throw new Error(
+    `[paladin-trust] apiBase must use https:// (got "${url.slice(0, 80)}"). ` +
+      "Set PALADIN_TRUST_ALLOW_INSECURE=1 for non-HTTPS dev/testnet hosts.",
+  );
 }
 
 export default paladinTrustActionProvider;

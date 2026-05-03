@@ -127,7 +127,7 @@ curl -sS -X POST https://swap.paladinfi.com/v1/trust-check/preview \
 
 AgentKit's in-tree `x402ActionProvider` solves the **payment plumbing** (handling 402 challenges, EIP-3009 USDC settlement, retry flows). This package adds the **trust-verification semantic layer** on top — composed OFAC + GoPlus + Etherscan + anomaly + lookalike signals returned in a single deterministic verdict so the agent can abstain on `block` without composing those signals itself.
 
-Once v0.1.0 ships, this package will use AgentKit's `x402ActionProvider` under the hood for the paid call (the right separation of concerns).
+Once v0.1.0 ships, this package's paid call will use the same `@x402/fetch` settlement library AgentKit's in-tree `x402ActionProvider` uses — `wrapFetchWithPayment(fetch, walletProvider)` — taking the wallet provider from the AgentKit context. That's the right separation of concerns and avoids re-implementing EIP-3009 signing.
 
 ## Security & disclosures
 
@@ -138,7 +138,9 @@ Once v0.1.0 ships, this package will use AgentKit's `x402ActionProvider` under t
 
 ## Roadmap
 
-- **v0.1.0** (~2 weeks from 2026-05-02; deadline 2026-05-16): graduate from `customActionProvider` wrapper to a proper `PaladinActionProvider extends ActionProvider` class with `@CreateAction` decorators. Wire paid x402 settlement via AgentKit's `x402ActionProvider` integration. Add LLM prompt extraction so natural-language messages invoke the action.
+> **v0.1.0 will be a breaking change from v0.0.x.** The factory currently returns AgentKit's `customActionProvider`-shaped object; v0.1.0 graduates to a proper class-based `ActionProvider` subclass which changes the constructor signature and returned shape. Pin to `^0.0.1` if you depend on the v0.0.x factory shape today.
+
+- **v0.1.0** (~2 weeks from 2026-05-02; deadline 2026-05-16): graduate from `customActionProvider` wrapper to a proper `PaladinActionProvider extends ActionProvider` class with `@CreateAction` decorators. Wire paid x402 settlement via the same `@x402/fetch` library AgentKit's in-tree `x402ActionProvider` uses. Add LLM prompt extraction so natural-language messages invoke the action.
 - **v0.2.0**: Vitest unit + integration tests matching AgentKit's testing pattern; CI green badge; toon-format / chat-history compatibility if relevant.
 - **v0.3.0**: separate `paladin_lookalike_check` action exposed as a standalone hook agents can compose into transfer flows (not just swap).
 - **v1.0.0**: production stable, multi-chain, AgentKit native (potentially merged into `coinbase/agentkit/typescript/agentkit/src/action-providers/paladin/` as an in-tree provider via PR).
