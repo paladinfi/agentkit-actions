@@ -5,6 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Chain](https://img.shields.io/badge/chain-Base%208453-2563eb)](https://basescan.org/)
 [![npm](https://img.shields.io/badge/npm-v0.1.0-cb3837)](https://www.npmjs.com/package/@paladinfi/agentkit-actions)
+[![CI](https://github.com/paladinfi/agentkit-actions/actions/workflows/ci.yml/badge.svg)](https://github.com/paladinfi/agentkit-actions/actions/workflows/ci.yml)
 
 ---
 
@@ -105,6 +106,7 @@ Returns `recommendation: allow | warn | block` plus per-factor breakdown. The in
 - **Chain coverage**: Base (chainId 8453) only. `supportsNetwork` rejects all other networks.
 - **Library trust**: x402 settlement uses [`@x402/fetch@2.11.0`](https://www.npmjs.com/package/@x402/fetch) + [`@x402/evm@2.11.0`](https://www.npmjs.com/package/@x402/evm), Apache-2.0, maintained by the x402 Foundation.
 - **AgentKit alpha drift**: tested against `@coinbase/agentkit@0.10.4`. AgentKit's API is still evolving; expect to bump the pin as new minors land.
+- **Vulnerability disclosure**: see [`SECURITY.md`](./SECURITY.md) for the disclosure path. Email `dev@paladinfi.com`; do not open public Issues for security findings.
 
 ## Operator
 
