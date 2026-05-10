@@ -1,7 +1,7 @@
 {
   "name": "@paladinfi/agentkit-actions",
-  "version": "0.1.0",
-  "description": "Pre-trade trust verification for Coinbase AgentKit agents — composed OFAC SDN + GoPlus + Etherscan + lookalike risk gate via x402-paid PaladinFi API on Base. Class-based ActionProvider with paid x402 settlement.",
+  "version": "0.1.1",
+  "description": "Pre-trade trust verification for Coinbase AgentKit agents — composed OFAC SDN + GoPlus + Etherscan + anomaly-heuristics risk gate via x402-paid PaladinFi API on Base. Class-based ActionProvider with paid x402 settlement.",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -24,7 +24,6 @@
     "ofac",
     "goplus",
     "etherscan",
-    "lookalike",
     "paladinfi",
     "base",
     "defi",

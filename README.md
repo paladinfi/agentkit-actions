@@ -1,6 +1,6 @@
 # @paladinfi/agentkit-actions
 
-**Pre-trade composed risk gate for Coinbase AgentKit agents** — OFAC SDN + GoPlus token security + Etherscan source verification + anomaly heuristics + lookalike detection. Single x402-paid call against [PaladinFi](https://swap.paladinfi.com) on Base.
+**Pre-trade composed risk gate for Coinbase AgentKit agents** — OFAC SDN + GoPlus token security + Etherscan source verification + anomaly heuristics. Single x402-paid call against [PaladinFi](https://swap.paladinfi.com) on Base.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Chain](https://img.shields.io/badge/chain-Base%208453-2563eb)](https://basescan.org/)
@@ -41,7 +41,7 @@ const tools = await getLangChainTools(agentkit);
 
 The agent now has a `paladin_trust_check` tool. When the LLM decides to use it (e.g., before a `swap` action), it'll call `/v1/trust-check/preview` (free) and get back a recommendation.
 
-Preview responses are sample fixtures: every factor has `real: false` and the recommendation is `sample-` prefixed (`sample-allow` / `sample-warn` / `sample-block`) so a screenshot cannot be cropped into a misleading "real" assessment. Paid responses **omit** the `real` field per factor (the schema defaults absent values to `true`) and use plain `allow`/`warn`/`block`.
+Preview responses are sample fixtures: every factor has `real: false` and the recommendation is `sample-` prefixed (`sample-allow` / `sample-warn` / `sample-block`) so a screenshot cannot be cropped into a misleading "real" assessment. Paid responses return factors with `real: true` for successful evaluations; if any underlying source (OFAC, anomaly heuristics, or scam-intel — which wraps GoPlus + Etherscan) is temporarily unreachable, that factor is included with `real: false` and `signal: "unreachable"`, contributing 0 to `risk_score`. If all sources are unreachable, the response returns `recommendation: "warn"` (fail-closed, never silent-allow). `recommendation` ∈ `{allow, warn, block}`.
 
 ## Paid mode wiring
 
@@ -82,7 +82,6 @@ That's it. The action provider extracts a viem `LocalAccount` from your wallet p
 | **GoPlus token security** | GoPlus trust-list + token-security API | On-call (recently-deployed contracts may not yet be classified) |
 | **Etherscan source verification** | Etherscan `getSourceCode` | Cached per `(address, chainId)` |
 | **Anomaly heuristics** | Fresh-deploy / low-holder / proxy patterns | On-call |
-| **Lookalike detection** | Symbol/name proximity vs known-asset whitelist + recently-active tokens | On-call |
 
 Returns `recommendation: allow | warn | block` plus per-factor breakdown. The intended pattern: agent abstains on `block`, surfaces a warning on `warn`, proceeds on `allow`.
 
@@ -91,7 +90,7 @@ Returns `recommendation: allow | warn | block` plus per-factor breakdown. The in
 | Mode | Endpoint | Cost | Returns |
 |---|---|---|---|
 | `preview` (default) | `POST /v1/trust-check/preview` | Free, no auth, no payment | Sample fixture (`real: false`, `recommendation` is `sample-` prefixed) |
-| `paid` | `POST /v1/trust-check` | $0.001 USDC/call settled via x402 on Base | Live evaluation (factors return without `real` field, schema defaults to `true`; `recommendation` ∈ `{allow, warn, block}`) |
+| `paid` | `POST /v1/trust-check` | $0.001 USDC/call settled via x402 on Base | Live evaluation. Factors return with `real: true` for successful checks; unreachable sources include the factor with `real: false` and `signal: "unreachable"`, contributing 0 to `risk_score`. If all sources are unreachable, response is `recommendation: "warn"` (fail-closed, never silent-allow). `recommendation` ∈ `{allow, warn, block}` |
 
 ## Sister package
 
@@ -107,6 +106,7 @@ Returns `recommendation: allow | warn | block` plus per-factor breakdown. The in
 - **Library trust**: x402 settlement uses [`@x402/fetch@2.11.0`](https://www.npmjs.com/package/@x402/fetch) + [`@x402/evm@2.11.0`](https://www.npmjs.com/package/@x402/evm), Apache-2.0, maintained by the x402 Foundation.
 - **AgentKit alpha drift**: tested against `@coinbase/agentkit@0.10.4`. AgentKit's API is still evolving; expect to bump the pin as new minors land.
 - **Vulnerability disclosure**: see [`SECURITY.md`](./SECURITY.md) for the disclosure path. Email `dev@paladinfi.com`; do not open public Issues for security findings.
+- **PaladinFi server version**: this README documents the response contract of server v0.11.73 (current production as of 2026-05-07). The schema is field-additive (no removed fields); v0.11.73 also tightens the contract — when sources are unreachable, `recommendation` is now `"warn"` rather than `"allow"`, so clients keying off `"allow"` at the prior contract should retest.
 
 ## Operator
 

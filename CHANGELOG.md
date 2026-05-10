@@ -2,6 +2,17 @@
 
 All notable changes to `@paladinfi/agentkit-actions` are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-05-10
+
+Doc-only patch. No code or runtime changes — paired distribution artifact for PaladinFi server v0.11.73 (per Distribution Discipline Gate). v0.1.0 customers see no behavior change beyond what the server-side v0.11.73 contract change already delivers.
+
+### Changed
+
+- **README**: removed stale "lookalike detection" feature claim (lede + "What it does" table). Lookalike-symbol detection was removed from PaladinFi production in server v0.11.62 (2026-05-04); the README was not updated at that time.
+- **README**: paid-mode response semantics now document the v0.11.73 fail-closed contract. When an underlying source (OFAC, anomaly heuristics, scam-intel) is temporarily unreachable, the factor is included with `real: false` and `signal: "unreachable"`, contributing 0 to `risk_score`. If all sources are unreachable, the response returns `recommendation: "warn"` instead of the prior `recommendation: "allow"` (closes a silent-allow vector that existed since server v0.11.50).
+- **README**: added Security & disclosures bullet documenting server v0.11.73 contract reference + behavior change advisory for clients keying off `recommendation: "allow"`.
+- **package.json**: description updated to drop stale "lookalike" reference; `keywords` removed `"lookalike"` entry.
+
 ## [0.1.0] - 2026-05-04
 
 First functional release. Graduates from `customActionProvider` thin wrapper to a proper `PaladinActionProvider extends ActionProvider<EvmWalletProvider>` with `@CreateAction` decorator + paid x402 settlement. Mirrors security architecture of sister package `@paladinfi/eliza-plugin-trust@0.1.0` (same hard-coded constants, same 6-check pre-sign hook, same `scrubViemError` pattern).
