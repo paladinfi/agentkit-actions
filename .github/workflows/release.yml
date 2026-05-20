@@ -41,11 +41,14 @@ jobs:
           ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0   # full history so origin/main ancestry check below can resolve
 
+      # Note: NO registry-url here. With Trusted Publishing (OIDC), npm CLI
+      # handles the registry endpoint + auth itself. Setting registry-url makes
+      # setup-node inject `_authToken=${NODE_AUTH_TOKEN}` into .npmrc, which
+      # short-circuits the OIDC handshake with a 401 from empty token auth.
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
-          registry-url: 'https://registry.npmjs.org'
 
       # Pin npm exact. Trusted Publishing requires npm >= 11.5.1.
       # Exact pin (not caret/latest) closes the supply-chain window between OIDC issuance and publish.
