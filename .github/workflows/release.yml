@@ -140,9 +140,9 @@ jobs:
             echo 'RELEASE_BODY_EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - name: Verify OIDC auth (fail-fast before publish)
-        run: npm whoami
-
+      # OIDC handshake happens inside `npm publish --provenance` itself (npm 11.5+).
+      # `npm whoami` was tried as a fail-fast probe but it queries existing session
+      # auth rather than triggering OIDC — wrong primitive.
       - name: npm publish (Trusted Publishing via OIDC; no long-lived token)
         run: npm publish --provenance --access public
 
