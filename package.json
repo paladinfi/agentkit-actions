@@ -72,7 +72,7 @@
     "test:watch": "vitest",
     "check-drift": "node scripts/check-drift.mjs",
     "prepublishOnly": "npm run check-drift && npm run typecheck && npm run test && npm run build",
-    "clean": "rm -rf dist"
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "publishConfig": {
     "access": "public"

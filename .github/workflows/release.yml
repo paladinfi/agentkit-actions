@@ -1,0 +1,199 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish (must already exist + be reachable from main, e.g. v0.1.1)'
+        required: true
+        type: string
+
+# Minimum workflow-level permission. Per-job overrides below grant only what each job needs.
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: publish ${{ github.ref_name || inputs.tag }} to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write   # gh release create
+      id-token: write   # npm OIDC (Trusted Publishing) + provenance
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0   # full history so origin/main ancestry check below can resolve
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Pin npm exact. Trusted Publishing requires npm >= 11.5.1.
+      # Exact pin (not caret/latest) closes the supply-chain window between OIDC issuance and publish.
+      # Bump deliberately on the quarterly token-hygiene review.
+      - name: Upgrade npm to pinned version (Trusted Publishing requires >= 11.5.1)
+        run: npm install -g 'npm@11.5.1'
+
+      - name: Resolve tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          TAG="${INPUT_TAG:-$REF_NAME}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved tag=$TAG version=$VERSION"
+
+      # Reject tags that point at commits not reachable from origin/main.
+      # With Trusted Publishing, the trust boundary moves from "who holds the npm token"
+      # to "who can push a tag" — this re-tightens it.
+      - name: Verify tag commit is reachable from origin/main
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          # Full main history — depth-limited fetch could falsely reject legitimate
+          # re-publishes of old tags reachable from main but >N commits behind HEAD.
+          git fetch origin main
+          TAG_SHA=$(git rev-parse "${TAG}^{commit}")
+          if ! git merge-base --is-ancestor "$TAG_SHA" origin/main; then
+            echo "::error::Tag $TAG (commit $TAG_SHA) is not reachable from origin/main. Refusing to publish from non-main commits."
+            exit 1
+          fi
+          echo "Tag $TAG ($TAG_SHA) verified reachable from origin/main"
+
+      - name: Verify tag matches package.json version
+        env:
+          EXPECTED: ${{ steps.tag.outputs.version }}
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [ "$PKG_VERSION" != "$EXPECTED" ]; then
+            echo "::error::package.json version $PKG_VERSION does not match tag $EXPECTED"
+            exit 1
+          fi
+          echo "package.json version $PKG_VERSION matches tag"
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund --no-progress
+
+      - name: Typecheck + build + test (same as ci.yml + drift check)
+        run: |
+          npm run check-drift
+          npm run typecheck
+          npm run build
+          npm run test
+
+      - name: Verify tarball shape
+        run: |
+          npm pack --dry-run 2>&1 | tee pack-output.txt
+          for required in "README.md" "LICENSE" "CHANGELOG.md" "dist/index.d.ts"; do
+            grep -q "$required" pack-output.txt || { echo "::error::tarball missing $required"; exit 1; }
+          done
+
+      - name: Extract changelog body for this version
+        id: changelog
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          BODY=$(awk -v v="$VERSION" '
+            $0 ~ "^## \\["v"\\]" { capture=1; next }
+            capture && /^## \[/ { exit }
+            capture { print }
+          ' CHANGELOG.md)
+          if [ -z "$BODY" ]; then
+            echo "::error::no CHANGELOG section found for version $VERSION"
+            exit 1
+          fi
+          {
+            echo 'body<<RELEASE_BODY_EOF'
+            echo "$BODY"
+            echo ''
+            echo '---'
+            echo ''
+            echo "Published from tag \`${TAG}\` via [release workflow](https://github.com/${REPO}/actions/runs/${RUN_ID})."
+            echo 'RELEASE_BODY_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Verify OIDC auth (fail-fast before publish)
+        run: npm whoami
+
+      - name: npm publish (Trusted Publishing via OIDC; no long-lived token)
+        run: npm publish --provenance --access public
+
+      - name: Verify npm registry has the new version
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          for i in 1 2 3 4 5; do
+            CURRENT=$(npm view "@paladinfi/agentkit-actions@$VERSION" version 2>/dev/null || echo "")
+            if [ "$CURRENT" = "$VERSION" ]; then
+              echo "npm registry now serves @paladinfi/agentkit-actions@$VERSION"
+              exit 0
+            fi
+            echo "Waiting for registry propagation (attempt $i/5)..."
+            sleep 10
+          done
+          echo "::error::npm registry did not surface $VERSION after publish"
+          exit 1
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          BODY: ${{ steps.changelog.outputs.body }}
+        run: |
+          gh release create "$TAG" --title "$TAG" --notes "$BODY"
+
+  smoke:
+    name: install smoke-test (registry → fresh project)
+    runs-on: ubuntu-latest
+    needs: publish
+    timeout-minutes: 6
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # ESM dynamic import() — package is "type":"module" with no CJS export.
+      - name: Smoke install + ESM import
+        env:
+          VERSION: ${{ needs.publish.outputs.version }}
+        run: |
+          mkdir smoke && cd smoke
+          npm init -y
+          npm install "@paladinfi/agentkit-actions@$VERSION"
+          node --input-type=module -e "
+            import('@paladinfi/agentkit-actions')
+              .then((pkg) => {
+                const keys = Object.keys(pkg);
+                console.log('Exported keys:', keys);
+                if (keys.length === 0) throw new Error('package exports nothing');
+                if (typeof pkg.paladinTrustActionProvider !== 'function') {
+                  throw new Error('paladinTrustActionProvider factory not exported');
+                }
+                if (!pkg.PaladinActionProvider) {
+                  throw new Error('PaladinActionProvider class not exported');
+                }
+              })
+              .catch((e) => { console.error(e); process.exit(1); });
+          "
