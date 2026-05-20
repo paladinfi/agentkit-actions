@@ -27,6 +27,11 @@ jobs:
     permissions:
       contents: write   # gh release create
       id-token: write   # npm OIDC (Trusted Publishing) + provenance
+    # check-drift expects sister-package checkout at ../eliza-plugin-trust (publisher's dev machine).
+    # CI doesn't co-check-out sisters; this env var is the script's documented escape for CI.
+    # Applies to both the explicit check-drift step AND the implicit one in prepublishOnly.
+    env:
+      PALADIN_DRIFT_ALLOW_NO_SISTER: '1'
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
       version: ${{ steps.tag.outputs.version }}
