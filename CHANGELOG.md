@@ -2,6 +2,21 @@
 
 All notable changes to `@paladinfi/agentkit-actions` are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-05-20
+
+Doc-only patch + CI-only changes. No source-code change to the action provider, paid x402 settlement path, or pre-sign validation hook. No wire-format or runtime-behavior change. `npm install @paladinfi/agentkit-actions@0.1.2` is a drop-in replacement for `0.1.1`.
+
+### Changed (CI only — no customer-side impact)
+
+- **First CI publish workflow shipped** — `.github/workflows/release.yml` previously absent (manual publishes only). Workflow uses npm Trusted Publishing (OIDC) from day one — no long-lived `NPM_TOKEN` dependency.
+- **`release.yml` hardening** from a Tier-1 3-adversary review of the migration: job-scoped `id-token: write` permissions, exact `npm@11.5.1` pin, tag-on-main verification, env-routed shell interpolation, `npm ci`, ESM dynamic import in smoke test.
+- **`package.json` clean script cross-platform fix** (`rm -rf dist` → `node -e require('fs').rmSync(...)`). Closes a pre-existing violation of the cross-platform-scripts convention (was Linux-only).
+- **`PALADIN_DRIFT_ALLOW_NO_SISTER=1` env** in the publish job: the `check-drift` script expects sister-package checkout at `../eliza-plugin-trust` (publisher's dev-machine layout); CI doesn't co-check-out sister repos. The script's own documented CI escape is now set.
+
+### Why
+
+Same forcing function as `@paladinfi/eliza-plugin-trust@0.3.3` — npm's 2026-05-19 mass rotation of bypass-2FA write tokens. Migrated to OIDC per npm's recommendation. End-to-end OIDC was validated on agentkit-actions first (workflow reached `npm publish`, OIDC handshake succeeded, only `403 cannot republish 0.1.1` blocked the actual write — that's the canonical OIDC-working signal).
+
 ## [0.1.1] - 2026-05-10
 
 Doc-only patch. No code or runtime changes — paired distribution artifact for PaladinFi server v0.11.73 (per Distribution Discipline Gate). v0.1.0 customers see no behavior change beyond what the server-side v0.11.73 contract change already delivers.
