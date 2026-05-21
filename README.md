@@ -81,7 +81,7 @@ That's it. The action provider extracts a viem `LocalAccount` from your wallet p
 | **OFAC SDN screening** | U.S. Treasury SDN XML feed (cryptocurrency-tagged via Feature 345 / Detail 1432) | PaladinFi service refreshes from Treasury every 24 hours |
 | **GoPlus token security** | GoPlus trust-list + token-security API | On-call (recently-deployed contracts may not yet be classified) |
 | **Etherscan source verification** | Etherscan `getSourceCode` | Cached per `(address, chainId)` |
-| **Anomaly heuristics** | Fresh-deploy / low-holder / proxy patterns | On-call |
+| **Anomaly heuristics** | Contract age (1h / 24h / 7d windows), address-kind classification (contract vs. EOA), no-outbound transaction history | On-call |
 
 Returns `recommendation: allow | warn | block` plus per-factor breakdown. The intended pattern: agent abstains on `block`, surfaces a warning on `warn`, proceeds on `allow`.
 

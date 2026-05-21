@@ -2,6 +2,22 @@
 
 All notable changes to `@paladinfi/agentkit-actions` are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-05-21
+
+Doc-only patch. README correction to align the anomaly-heuristics description with `address_anomaly.py` actual emitted signals on the paladin-swap-router backend. No source-code change to this action provider, paid x402 settlement path, or pre-sign validation hook. No wire-format or runtime-behavior change. `npm install @paladinfi/agentkit-actions@0.1.3` is a drop-in replacement for `0.1.2`.
+
+### Changed (README only — no customer-side impact)
+
+- **Anomaly heuristics description corrected.** Previously claimed "Fresh-deploy / low-holder / proxy patterns" — but the backend `address_anomaly.py` module does not implement holder-count or proxy-pattern detection. Replaced with code-accurate language: "Contract age (1h / 24h / 7d windows), address-kind classification (contract vs. EOA), no-outbound transaction history." Mapping: `contract_age_under_1h/24h/7d`, `address_kind_*`, `no_outbound_history` per the module's actual emitted signal strings.
+
+### Why
+
+Side-finding from `T-008` Maintainer Round-2 review (2026-05-21) which surfaced the same overclaim on `paladinfi.com` apex pages (`/`, `/trust-check/`, `/blog/agentkit-trust-gate-tutorial/`). Apex fix deployed via Hostinger MCP earlier 2026-05-21 with 13/13 pages verified HTTP 200 + new copy live; this patch propagates the correction to the npm `@paladinfi/agentkit-actions` README so the published package metadata stays in sync.
+
+### Review
+
+Same Tier-2 Domain Skeptic review pass that cleared the apex fix (APPROVE-AS-IS, 2026-05-21). Skeptic verified each replacement phrase maps cleanly to `address_anomaly.py`'s actual emitted signals. Same wording applied identically to the npm package README, so no fresh review required.
+
 ## [0.1.2] - 2026-05-20
 
 Doc-only patch + CI-only changes. No source-code change to the action provider, paid x402 settlement path, or pre-sign validation hook. No wire-format or runtime-behavior change. `npm install @paladinfi/agentkit-actions@0.1.2` is a drop-in replacement for `0.1.1`.
