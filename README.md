@@ -15,6 +15,10 @@ AgentKit ships a generic `x402ActionProvider` that lets your agent make HTTP-via
 
 If you mount AgentKit's `x402ActionProvider` alongside this one, note that the generic provider's `make_http_request_with_x402` action can also call `/v1/trust-check` directly — but **does not** apply our pre-sign hook. Funds are still bounded by the server's declared price ($0.001), so this is not a drain vector, but the safety guarantee only holds via this package's `paladin_trust_check` action.
 
+## Direct API access (no plugin, free OFAC screening)
+
+If you only need OFAC SDN screening for wallet addresses and don't need the AgentKit `ActionProvider`, hit the free public endpoint directly: drop-in cURL + a ~3-minute React hook walkthrough at [paladinfi.com/docs/screen-wallets/](https://paladinfi.com/docs/screen-wallets/). Anonymous, rate-limited at 1 r/s + burst 3, refreshed daily from the U.S. Treasury XML feed.
+
 ## Quick start (preview mode)
 
 ```bash

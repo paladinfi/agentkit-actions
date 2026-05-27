@@ -2,6 +2,18 @@
 
 All notable changes to `@paladinfi/agentkit-actions` are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-05-27
+
+Doc-only patch. No wire-format, runtime, or public-API change — `npm install @paladinfi/agentkit-actions@0.1.4` is a drop-in replacement for `0.1.3`.
+
+### Changed (README)
+
+- **README** — new "Direct API access (no plugin, free OFAC screening)" section above Quick start, pointing to the new dev tutorial at [paladinfi.com/docs/screen-wallets/](https://paladinfi.com/docs/screen-wallets/). Surfaces the free `/v1/trust-check/ofac` endpoint (anonymous, rate-limited, real OFAC SDN data) for callers who want wallet sanctions screening without installing the AgentKit `ActionProvider`. Tutorial page itself shipped 2026-05-27 under Tier-1 3-adversary review clearance.
+
+### Why
+
+Cross-link #2 of 5 from the `/docs/screen-wallets/` deploy plan (Maintainer M-5 finding). README polish on existing already-reviewed package per the Tier-3 link-add framework — no new claims, no commitments, link target live-verified at HTTP 200.
+
 ## [0.1.3] - 2026-05-21
 
 Doc-only patch. README correction to align the anomaly-heuristics description with `address_anomaly.py` actual emitted signals on the paladin-swap-router backend. No source-code change to this action provider, paid x402 settlement path, or pre-sign validation hook. No wire-format or runtime-behavior change. `npm install @paladinfi/agentkit-actions@0.1.3` is a drop-in replacement for `0.1.2`.
