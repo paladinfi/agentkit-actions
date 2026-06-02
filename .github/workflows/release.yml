@@ -36,7 +36,7 @@ jobs:
       tag: ${{ steps.tag.outputs.tag }}
       version: ${{ steps.tag.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0   # full history so origin/main ancestry check below can resolve
@@ -45,7 +45,7 @@ jobs:
       # handles the registry endpoint + auth itself. Setting registry-url makes
       # setup-node inject `_authToken=${NODE_AUTH_TOKEN}` into .npmrc, which
       # short-circuits the OIDC handshake with a 401 from empty token auth.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -178,7 +178,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
 
